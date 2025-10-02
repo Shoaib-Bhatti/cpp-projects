@@ -50,10 +50,12 @@ public:
 
 class IssuedRecord {
 public:
+    int memberId, bookId;
     string memberName, bookTitle, issueDate, returnDate;
 
-    IssuedRecord(string m, string b, string i, string r) {
-        memberName = m; bookTitle = b; issueDate = i; returnDate = r;
+    IssuedRecord(int mId, string m, int bId, string b, string i, string r) {
+        memberId = mId; memberName = m; bookId = bId; bookTitle = b;
+        issueDate = i; returnDate = r;
     }
 
     string toString() const {
@@ -62,7 +64,9 @@ public:
     }
 
     string fileString() const {
-        return memberName + " | " + bookTitle + " | " + issueDate + " | " + returnDate;
+        return to_string(memberId) + " | " + memberName + " | " +
+               to_string(bookId) + " | " + bookTitle + " | " +
+               issueDate + " | " + returnDate;
     }
 };
 
@@ -72,12 +76,16 @@ vector<IssuedRecord> records;
 
 void addBook() {
     int id, year; string title, author, genre; char avail;
-    cout << "Enter Book ID: "; cin >> id; cin.ignore();
+    cout << "Enter Book ID: "; 
+    if (!(cin >> id)) { cin.clear(); cin.ignore(1000, '\n'); cout << "Invalid input!\n"; return; }
+    cin.ignore();
     cout << "Enter Title: "; getline(cin, title);
     cout << "Enter Author: "; getline(cin, author);
     cout << "Enter Genre: "; getline(cin, genre);
-    cout << "Enter Publication Year: "; cin >> year;
-    cout << "Is Available (y/n): "; cin >> avail;
+    cout << "Enter Publication Year: "; 
+    if (!(cin >> year) || year < 0) { cin.clear(); cin.ignore(1000, '\n'); cout << "Invalid year!\n"; return; }
+    cout << "Is Available (y/n): "; cin >> ws >> avail;
+
     books.push_back(Book(id, title, author, genre, year, (avail=='y'||avail=='Y')));
     cout << "Book added successfully!\n";
 }
@@ -89,11 +97,16 @@ void showBooks() {
 
 void addMember() {
     int id, age; string name, gender, contact;
-    cout << "Enter Member ID: "; cin >> id; cin.ignore();
+    cout << "Enter Member ID: "; 
+    if (!(cin >> id)) { cin.clear(); cin.ignore(1000, '\n'); cout << "Invalid input!\n"; return; }
+    cin.ignore();
     cout << "Enter Full Name: "; getline(cin, name);
-    cout << "Enter Age: "; cin >> age; cin.ignore();
+    cout << "Enter Age: "; 
+    if (!(cin >> age) || age <= 0) { cin.clear(); cin.ignore(1000, '\n'); cout << "Invalid age!\n"; return; }
+    cin.ignore();
     cout << "Enter Gender: "; getline(cin, gender);
     cout << "Enter Contact Number: "; getline(cin, contact);
+
     members.push_back(Member(id, name, age, gender, contact));
     cout << "Member added successfully!\n";
 }
@@ -111,14 +124,14 @@ void issueBook() {
     for (const auto &m : members) cout << m.toString() << endl;
     int memId; cout << "Enter Member ID: "; cin >> memId;
     Member *selMem = nullptr;
-    for (auto &m : members) if (m.id == memId) selMem = &m;
+    for (auto &m : members) { if (m.id == memId) { selMem = &m; break; } }
     if (!selMem) { cout << "Invalid Member ID.\n"; return; }
 
     cout << "\n--- Available Books ---\n";
     for (const auto &b : books) if (b.available) cout << b.toString() << endl;
     int bookId; cout << "Enter Book ID: "; cin >> bookId;
     Book *selBook = nullptr;
-    for (auto &b : books) if (b.id == bookId && b.available) selBook = &b;
+    for (auto &b : books) { if (b.id == bookId && b.available) { selBook = &b; break; } }
     if (!selBook) { cout << "Invalid or unavailable Book ID.\n"; return; }
 
     string issueDate, returnDate; cin.ignore();
@@ -126,8 +139,24 @@ void issueBook() {
     cout << "Enter Return Date: "; getline(cin, returnDate);
 
     selBook->available = false;
-    records.push_back(IssuedRecord(selMem->name, selBook->title, issueDate, returnDate));
+    records.push_back(IssuedRecord(selMem->id, selMem->name, selBook->id, selBook->title, issueDate, returnDate));
     cout << "Book issued successfully to " << selMem->name << "!\n";
+}
+
+void returnBook() {
+    if (records.empty()) { cout << "No issued records found.\n"; return; }
+    cout << "\n--- Issued Records ---\n";
+    for (const auto &r : records) cout << r.toString() << endl;
+
+    int bookId; cout << "Enter Book ID to return: "; cin >> bookId;
+    for (auto &b : books) {
+        if (b.id == bookId) {
+            b.available = true;
+            cout << "Book returned successfully!\n";
+            return;
+        }
+    }
+    cout << "Book ID not found in records.\n";
 }
 
 void showIssuedRecords() {
@@ -136,15 +165,18 @@ void showIssuedRecords() {
 }
 
 void saveBooksToFile() {
-    ofstream f("books.txt"); for (const auto &b : books) f << b.fileString() << endl;
+    ofstream f("books.txt", ios::app); 
+    for (const auto &b : books) f << b.fileString() << endl;
     f.close(); cout << "Books saved to books.txt\n";
 }
 void saveMembersToFile() {
-    ofstream f("members.txt"); for (const auto &m : members) f << m.fileString() << endl;
+    ofstream f("members.txt", ios::app); 
+    for (const auto &m : members) f << m.fileString() << endl;
     f.close(); cout << "Members saved to members.txt\n";
 }
 void saveRecordsToFile() {
-    ofstream f("issued.txt"); for (const auto &r : records) f << r.fileString() << endl;
+    ofstream f("issued.txt", ios::app); 
+    for (const auto &r : records) f << r.fileString() << endl;
     f.close(); cout << "Issued records saved to issued.txt\n";
 }
 
@@ -176,7 +208,7 @@ int main() {
     while (true) {
         cout << "\n===== Library Management System =====\n";
         cout << "1. Add Book\n2. Show All Books\n3. Add Member\n4. Show All Members\n";
-        cout << "5. Issue Book\n6. Show Issued Records\n7. Save Data\n8. Exit\n";
+        cout << "5. Issue Book\n6. Return Book\n7. Show Issued Records\n8. Save Data\n9. Exit\n";
         cout << "Enter choice: "; cin >> choice;
 
         switch (choice) {
@@ -185,9 +217,10 @@ int main() {
             case 3: addMember(); break;
             case 4: showMembers(); break;
             case 5: issueBook(); break;
-            case 6: showIssuedRecords(); break;
-            case 7: saveDataMenu(); break;
-            case 8: cout << "Exiting...\n"; return 0;
+            case 6: returnBook(); break;
+            case 7: showIssuedRecords(); break;
+            case 8: saveDataMenu(); break;
+            case 9: cout << "Exiting...\n"; return 0;
             default: cout << "Invalid choice!\n";
         }
     }
